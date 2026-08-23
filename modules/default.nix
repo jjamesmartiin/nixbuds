@@ -77,15 +77,15 @@ in
     ];
 
     # systemd user service, as in upstream's omarchpods.service
-    systemd.user.services.omarchpods = {
-      description = "Omarchpods Core Service";
+    systemd.user.services.nixbuds = {
+      description = "nixbuds Core Service";
       documentation = [ "https://github.com/tomycostantino/omarchpods" ];
       after = [ "bluetooth.target" ];
       wants = [ "bluetooth.target" ];
       wantedBy = [ "default.target" ];
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${cfg.package}/bin/omarchpods";
+        ExecStart = "${cfg.package}/bin/nixbuds";
         Restart = "on-failure";
         RestartSec = 5;
         StandardOutput = "journal";
@@ -94,15 +94,15 @@ in
     };
 
     # Optional web UI served on 127.0.0.1 (user service).
-    systemd.user.services.omarchpods-webui = lib.mkIf cfg.webui.enable {
-      description = "Omarchpods Web UI";
+    systemd.user.services.nixbuds-webui = lib.mkIf cfg.webui.enable {
+      description = "nixbuds Web UI";
       documentation = [ "https://github.com/tomycostantino/omarchpods" ];
-      after = [ "omarchpods.service" ];
-      wants = [ "omarchpods.service" ];
+      after = [ "nixbuds.service" ];
+      wants = [ "nixbuds.service" ];
       wantedBy = [ "default.target" ];
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${cfg.package}/bin/omarchpods-webui --port ${toString cfg.webui.port}";
+        ExecStart = "${cfg.package}/bin/nixbuds-webui --port ${toString cfg.webui.port}";
         Restart = "on-failure";
         RestartSec = 2;
       };

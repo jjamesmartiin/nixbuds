@@ -36,7 +36,7 @@ let
     deps;
 in
 pkgs.stdenv.mkDerivation {
-  name = "omarchpods-dep-pin-check";
+  name = "nixbuds-dep-pin-check";
   inherit src;
 
   doCheck = true;

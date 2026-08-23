@@ -18,11 +18,13 @@
     {
       packages = forAllSystems (pkgs: {
         omarchpods = pkgs.callPackage ./packages/omarchpods.nix { };
+        nixbuds = self.packages.${pkgs.stdenv.hostPlatform.system}.omarchpods;
         default = self.packages.${pkgs.stdenv.hostPlatform.system}.omarchpods;
       });
 
       # Standalone entry points:
-      #   nix run .#            run the core daemon (foreground)
+      #   nix run .#            one command: daemon (if needed) + web UI, cleanup on exit
+      #   nix run .#daemon      run the core daemon (foreground)
       #   nix run .#ui          run the Textual TUI in the current terminal
       #   nix run .#launcher    open a terminal running the TUI (xdg-terminal-exec)
       #   nix run .#webui       serve the web UI on http://127.0.0.1:2021
@@ -31,23 +33,27 @@
           # One command: daemon (if needed) + UI + cleanup.
           default = {
             type = "app";
-            program = "${pkg}/bin/omarchpods-start";
+            program = "${pkg}/bin/nixbuds-start";
+          };
+          start = {
+            type = "app";
+            program = "${pkg}/bin/nixbuds-start";
           };
           daemon = {
             type = "app";
-            program = "${pkg}/bin/omarchpods";
+            program = "${pkg}/bin/nixbuds";
           };
           ui = {
             type = "app";
-            program = "${pkg}/bin/omarchpods-ui";
+            program = "${pkg}/bin/nixbuds-ui";
           };
           launcher = {
             type = "app";
-            program = "${pkg}/bin/omarchy-launch-omarchpods";
+            program = "${pkg}/bin/nixbuds-launch";
           };
           webui = {
             type = "app";
-            program = "${pkg}/bin/omarchpods-webui";
+            program = "${pkg}/bin/nixbuds-webui";
           };
         });
 
@@ -71,7 +77,7 @@
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          name = "omarchpods-dev";
+          name = "nixbuds-dev";
           packages = [
             # The built binaries are available in the dev shell too.
             (pkgs.callPackage ./packages/omarchpods.nix { })

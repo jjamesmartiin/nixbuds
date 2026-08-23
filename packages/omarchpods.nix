@@ -102,26 +102,26 @@ stdenv.mkDerivation {
   installPhase = ''
         runHook preInstall
 
-        install -Dm755 MagicPodsCore "$out/bin/omarchpods"
+        install -Dm755 MagicPodsCore "$out/bin/nixbuds"
         mkdir -p "$out/share/omarchpods"
         cp -r ../ui "$out/share/omarchpods/ui"
         cp -r ${./../webui} "$out/share/omarchpods/webui"
 
         # Plain launcher: run the TUI in the current terminal.
-        makeWrapper "${python}/bin/python" "$out/bin/omarchpods-ui" \
+        makeWrapper "${python}/bin/python" "$out/bin/nixbuds-ui" \
           --set PYTHONPATH "$out/share/omarchpods/ui" \
           --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
           --add-flags "$out/share/omarchpods/ui/main.py"
 
         # Omarchy-style launcher: open a terminal running the TUI.
         makeWrapper "${xdg-terminal-exec}/bin/xdg-terminal-exec" \
-          "$out/bin/omarchy-launch-omarchpods" \
+          "$out/bin/nixbuds-launch" \
           --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
           --add-flags "--app-id=com.omarchy.Omarchy --title=Omarchpods" \
           --add-flags "${python}/bin/python $out/share/omarchpods/ui/main.py"
 
         # Web UI: serve the static page on 127.0.0.1:2021 (override with --port).
-        cat > "$out/bin/omarchpods-webui" <<EOF
+        cat > "$out/bin/nixbuds-webui" <<EOF
     #!/bin/sh
     PORT=2021
     if [ "\$1" = "--port" ]; then
@@ -129,13 +129,13 @@ stdenv.mkDerivation {
     fi
     exec "${python}/bin/python" -m http.server "\$PORT" --bind 127.0.0.1 --directory "$out/share/omarchpods/webui"
     EOF
-        chmod +x "$out/bin/omarchpods-webui"
+        chmod +x "$out/bin/nixbuds-webui"
 
     # One-command launcher: starts the daemon if needed, opens the UI, and
     # cleans up what it started on exit.
     sed "s|@out@|$out|g; s|@coreutils@|${coreutils}|g; s|@xdg-utils@|${xdg-utils}|g" \
-      ${./../scripts/omarchpods-start.sh} > "$out/bin/omarchpods-start"
-    chmod +x "$out/bin/omarchpods-start"
+      ${./../scripts/nixbuds-start.sh} > "$out/bin/nixbuds-start"
+    chmod +x "$out/bin/nixbuds-start"
 
         runHook postInstall
   '';
@@ -146,7 +146,7 @@ stdenv.mkDerivation {
     license = lib.licenses.gpl3Only;
     maintainers = [ ];
     platforms = lib.platforms.linux;
-    # nix run .#omarchpods / nix run .#  → the one-command launcher
-    mainProgram = "omarchpods-start";
+    # nix run .#nixbuds / nix run .#  → the one-command launcher
+    mainProgram = "nixbuds-start";
   };
 }

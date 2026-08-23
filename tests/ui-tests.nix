@@ -17,7 +17,7 @@ let
   ]);
 in
 pkgs.stdenv.mkDerivation {
-  name = "omarchpods-ui-tests";
+  name = "nixbuds-ui-tests";
   inherit src;
 
   nativeBuildInputs = [ python ];

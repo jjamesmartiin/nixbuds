@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# omarchpods-start — one command to get omarchpods running.
+# nixbuds-start — one command to get nixbuds running.
 #
-#   omarchpods-start [web|tui]
+#   nixbuds-start [web|tui]
 #
 #   web (default)  start the core daemon (if needed), then open the web UI
 #                  in your browser (http://127.0.0.1:2021)
@@ -17,17 +17,17 @@ set -euo pipefail
 
 export PATH="@coreutils@/bin:@xdg-utils@/bin:$PATH"
 
-OMARCHPODS="@out@"
-DAEMON="$OMARCHPODS/bin/omarchpods"
-TUI="$OMARCHPODS/bin/omarchpods-ui"
-WEBUI="$OMARCHPODS/bin/omarchpods-webui"
+NIXBUDS="@out@"
+DAEMON="$NIXBUDS/bin/nixbuds"
+TUI="$NIXBUDS/bin/nixbuds-ui"
+WEBUI="$NIXBUDS/bin/nixbuds-webui"
 
 PORT=2020
 WEBUI_PORT=2021
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
-DAEMON_LOG="${OMARCHPODS_DAEMON_LOG:-$RUNTIME_DIR/omarchpods-daemon.log}"
-DAEMON_PID="$RUNTIME_DIR/omarchpods-daemon.pid"
-WEBUI_PID="$RUNTIME_DIR/omarchpods-webui.pid"
+DAEMON_LOG="${NIXBUDS_DAEMON_LOG:-$RUNTIME_DIR/nixbuds-daemon.log}"
+DAEMON_PID="$RUNTIME_DIR/nixbuds-daemon.pid"
+WEBUI_PID="$RUNTIME_DIR/nixbuds-webui.pid"
 
 MODE="${1:-web}"
 case "$MODE" in
@@ -58,9 +58,9 @@ port_open() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
 
 # --- core daemon -----------------------------------------------------------
 if port_open "$PORT"; then
-  echo "omarchpods daemon already running (port $PORT)"
+  echo "nixbuds daemon already running (port $PORT)"
 else
-  echo "starting omarchpods daemon (log: $DAEMON_LOG)"
+  echo "starting nixbuds daemon (log: $DAEMON_LOG)"
   "$DAEMON" >"$DAEMON_LOG" 2>&1 &
   echo $! >"$DAEMON_PID"
   started_daemon=1
@@ -84,15 +84,15 @@ fi
 if [ "$MODE" = "tui" ]; then
   echo "launching TUI (quit it or press Ctrl+C to stop everything)"
   "$TUI"
-  echo "TUI closed — stopping omarchpods"
+  echo "TUI closed — stopping nixbuds"
   exit 0
 fi
 
 if port_open "$WEBUI_PORT"; then
   echo "web UI already running at http://127.0.0.1:$WEBUI_PORT"
 else
-  echo "starting web UI (log: $RUNTIME_DIR/omarchpods-webui.log)"
-  "$WEBUI" >"$RUNTIME_DIR/omarchpods-webui.log" 2>&1 &
+  echo "starting web UI (log: $RUNTIME_DIR/nixbuds-webui.log)"
+  "$WEBUI" >"$RUNTIME_DIR/nixbuds-webui.log" 2>&1 &
   echo $! >"$WEBUI_PID"
   started_webui=1
 
@@ -101,7 +101,7 @@ else
     sleep 0.1
   done
   if ! port_open "$WEBUI_PORT"; then
-    echo "web UI did not start — see $RUNTIME_DIR/omarchpods-webui.log" >&2
+    echo "web UI did not start — see $RUNTIME_DIR/nixbuds-webui.log" >&2
     exit 1
   fi
 fi

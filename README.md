@@ -13,7 +13,7 @@ any configuration.
 
 ```
 ┌─────────────┐   D-Bus    ┌─────────────┐   WebSocket    ┌──────────────────┐
-│ BlueZ       │◄──────────►│ omarchpods  │◄──────────────►│ omarchpods-ui    │
+│ BlueZ       │◄──────────►│ nixbuds     │◄──────────────►│ nixbuds-ui       │
 │ (bluetoothd)│            │ core daemon │   localhost:   │ (Textual TUI)    │
 └─────────────┘            │ (C++)       │   2020         └──────────────────┘
                            │             │                ┌──────────────────┐
@@ -31,7 +31,7 @@ Linux). Then, from this repository:
 
 ```sh
 # terminal 1: run the core daemon (foreground)
-nix run .#omarchpods
+nix run .#daemon
 
 # terminal 2: run the TUI (WebSocket connection to the daemon)
 nix run .#ui
@@ -46,11 +46,11 @@ WebSocket API on `localhost:2020`; the TUI (and the web UI) talk to it.
 Other useful one-liners:
 
 ```sh
-nix run .#omarchpods -- --version     # print version and exit
+nix run .#daemon -- --version     # print version and exit
 nix run .#launcher                    # open a terminal running the TUI
                                       #   (via xdg-terminal-exec, Omarchy-style)
 
-nix build .#omarchpods                # build only
+nix build .#nixbuds                # build only
 nix shell .#                          # drop into a shell with all four
                                       #   binaries on PATH
 nix develop                           # dev shell: binaries + cmake, gcc,
@@ -59,16 +59,17 @@ nix develop                           # dev shell: binaries + cmake, gcc,
 
 | `nix run .#…` | runs | notes |
 | --- | --- | --- |
-| *(default)* / `.#daemon` | `omarchpods` | core daemon, foreground |
-| `.#ui` | `omarchpods-ui` | TUI in your current terminal |
-| `.#launcher` | `omarchy-launch-omarchpods` | spawns a terminal running the TUI |
-| `.#webui` | `omarchpods-webui` | serves the web UI on `http://127.0.0.1:2021` |
+| *(default)* / `.#start` | `nixbuds-start` | daemon (if needed) + web UI, cleans up on exit |
+| `.#daemon` | `nixbuds` | core daemon, foreground |
+| `.#ui` | `nixbuds-ui` | TUI in your current terminal |
+| `.#launcher` | `nixbuds-launch` | spawns a terminal running the TUI |
+| `.#webui` | `nixbuds-webui` | serves the web UI on `http://127.0.0.1:2021` |
 
 ### Typical session
 
 ```sh
-nix run .#omarchpods &      # daemon, logs to stdout
-nix run .#ui                # UI in this terminal; Ctrl+C to quit
+nix run .#daemon &      # daemon, logs to stdout
+nix run .#ui            # UI in this terminal; Ctrl+C to quit
 # or open http://127.0.0.1:2021 for the web UI (nix run .#webui)
 ```
 
@@ -81,12 +82,12 @@ nix run .#ui                # UI in this terminal; Ctrl+C to quit
 ```nix
 # flake.nix
 {
-  inputs.omarchpods.url = "github:jjamesmartiin/nixbuds";
+  inputs.nixbuds.url = "github:jjamesmartiin/nixbuds";
 
-  outputs = { nixpkgs, omarchpods, ... }: {
+  outputs = { nixpkgs, nixbuds, ... }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
       modules = [
-        omarchpods.nixosModules.default
+        nixbuds.nixosModules.default
         { services.omarchpods.enable = true; }
       ];
     };
@@ -133,16 +134,16 @@ in pkgs.omarchpods
 | `webui.port` | `2021` | Port for the web UI. |
 
 With the module enabled, the daemon runs as the **systemd user service**
-`omarchpods.service` (wanted by user `default.target`), matching upstream's
-Omarchy packaging. Launch the TUI with `omarchpods-ui`, or bind a key:
+`nixbuds.service` (wanted by user `default.target`), matching upstream's
+Omarchy packaging. Launch the TUI with `nixbuds-ui`, or bind a key:
 
 ```
 # hyprland.conf
-bind = SUPER SHIFT, H, exec, omarchy-launch-omarchpods
+bind = SUPER SHIFT, H, exec, nixbuds-launch
 ```
 
 With `webui.enable = true` an additional user service
-`omarchpods-webui.service` serves the web UI; open
+`nixbuds-webui.service` serves the web UI; open
 http://127.0.0.1:2021 in your browser.
 
 ---
@@ -151,10 +152,11 @@ http://127.0.0.1:2021 in your browser.
 
 | Binary | Description |
 | --- | --- |
-| `omarchpods` | The core daemon (`MagicPodsCore` C++). Owns the Bluetooth connection state and exposes a JSON WebSocket API on `localhost:2020`. |
-| `omarchpods-ui` | The Python [Textual](https://textual.textualize.io/) TUI. |
-| `omarchy-launch-omarchpods` | Opens a terminal running the TUI via `xdg-terminal-exec` (same behaviour as Omarchy's launcher). |
-| `omarchpods-webui` | Static web UI server (`http://127.0.0.1:2021`, port overridable with `--port`). Zero dependencies beyond Python's stdlib. |
+| `nixbuds` | The core daemon (`MagicPodsCore` C++). Owns the Bluetooth connection state and exposes a JSON WebSocket API on `localhost:2020`. |
+| `nixbuds-ui` | The Python [Textual](https://textual.textualize.io/) TUI. |
+| `nixbuds-launch` | Opens a terminal running the TUI via `xdg-terminal-exec` (same behaviour as Omarchy's launcher). |
+| `nixbuds-webui` | Static web UI server (`http://127.0.0.1:2021`, port overridable with `--port`). Zero dependencies beyond Python's stdlib. |
+| `nixbuds-start` | One-command launcher: starts the daemon if needed, opens the TUI/web UI, and cleans up what it started on exit. |
 
 ### Web UI
 
@@ -233,10 +235,10 @@ Upstream ships no `install` rules, so the derivation places the artifacts
 itself:
 
 ```
-$out/bin/omarchpods                  ← build/MagicPodsCore
-$out/bin/omarchpods-ui               ← wrapper: python ui/main.py (PYTHONPATH set)
-$out/bin/omarchy-launch-omarchpods   ← wrapper: xdg-terminal-exec … python ui/main.py
-$out/share/omarchpods/ui             ← the Textual TUI sources
+$out/bin/nixbuds                   ← build/MagicPodsCore
+$out/bin/nixbuds-ui                ← wrapper: python ui/main.py (PYTHONPATH set)
+$out/bin/nixbuds-launch            ← wrapper: xdg-terminal-exec … python ui/main.py
+$out/share/omarchpods/ui           ← the Textual TUI sources
 ```
 
 The TUI's volume control shells out to `pactl`; both wrappers therefore add
@@ -246,14 +248,14 @@ in your profile.
 ### The systemd user service
 
 ```ini
-# ~/.config/systemd/user/omarchpods.service (generated by the module)
+# ~/.config/systemd/user/nixbuds.service (generated by the module)
 [Unit]
 After=bluetooth.target
 Wants=bluetooth.target
 
 [Service]
 Type=simple
-ExecStart=/nix/store/…-omarchpods/bin/omarchpods
+ExecStart=/nix/store/…-omarchpods/bin/nixbuds
 Restart=on-failure
 RestartSec=5
 ```
@@ -356,13 +358,13 @@ You can also point the package at any source yourself:
 
 | Symptom | Cause / fix |
 | --- | --- |
-| `Failed to connect to server` in the TUI | Core daemon isn't running — start it (`nix run .#omarchpods`, or the user service), then wait for `Listening on port 2020`. |
+| `Failed to connect to server` in the TUI | Core daemon isn't running — start it (`nix run .#daemon`, or the user service), then wait for `Listening on port 2020`. |
 | No devices in the TUI | Check `bluetoothctl` sees paired devices and the adapter is powered. The daemon only lists paired headphones it recognises (see the supported-devices list upstream). |
 | `WRN Failed to get managed objects: Could not activate remote peer 'org.bluez'` | BlueZ isn't running. With the NixOS module this is wired up; standalone, start it (`systemctl start bluetooth` or your distro's equivalent). The daemon no longer crashes in this state (see Patches). |
 | Volume slider does nothing | The UI needs `pactl` talking to a running PulseAudio/PipeWire — our wrappers provide `pactl`, the audio server is up to you. |
-| Web UI shows “daemon offline” | The core daemon isn't running (`nix run .#omarchpods` or the user service). The page retries every 3 s. |
+| Web UI shows “daemon offline” | The core daemon isn't running (`nix run .#daemon` or the user service). The page retries every 3 s. |
 | No ANC buttons in the web UI | The device must report supported ANC modes (`anc.options`); some models don't. |
-| Service keeps restarting | `journalctl --user -u omarchpods.service -f` for the core daemon log. The TUI writes its own log to `/tmp/omarchpods.log`. |
+| Service keeps restarting | `journalctl --user -u nixbuds.service -f` for the core daemon log. The TUI writes its own log to `/tmp/omarchpods.log`. |
 
 ---
 

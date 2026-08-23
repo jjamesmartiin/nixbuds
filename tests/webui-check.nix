@@ -8,7 +8,7 @@ let
   webui = ../webui;
 in
 pkgs.stdenv.mkDerivation {
-  name = "omarchpods-webui-check";
+  name = "nixbuds-webui-check";
   src = webui;
 
   nativeBuildInputs = [ pkgs.nodejs ];

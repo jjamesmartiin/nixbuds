@@ -15,7 +15,7 @@ let
   python = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
 
   # Small script that talks to the core's WebSocket API.
-  wsTest = pkgs.writeScript "omarchpods-ws-test" ''
+  wsTest = pkgs.writeScript "nixbuds-ws-test" ''
     #!${python}/bin/python
     import json
     import sys
@@ -32,7 +32,7 @@ let
   '';
 in
 pkgs.testers.runNixOSTest {
-  name = "omarchpods";
+  name = "nixbuds";
 
   nodes.machine = { pkgs, ... }: {
     # Use the standalone module entry point (./default.nix) on purpose — this
@@ -61,20 +61,20 @@ pkgs.testers.runNixOSTest {
       machine.wait_for_unit("bluetooth.target")
 
       # Package installed with all the expected binaries
-      machine.succeed("test -x ${pkg}/bin/omarchpods")
-      machine.succeed("test -x ${pkg}/bin/omarchpods-ui")
-      machine.succeed("test -x ${pkg}/bin/omarchy-launch-omarchpods")
-      machine.succeed("${pkg}/bin/omarchpods --version")
+      machine.succeed("test -x ${pkg}/bin/nixbuds")
+      machine.succeed("test -x ${pkg}/bin/nixbuds-ui")
+      machine.succeed("test -x ${pkg}/bin/nixbuds-launch")
+      machine.succeed("${pkg}/bin/nixbuds --version")
 
       # The module generated the user service unit
       machine.succeed(
-          "grep -q 'ExecStart=${pkg}/bin/omarchpods' /etc/systemd/user/omarchpods.service"
+          "grep -q 'ExecStart=${pkg}/bin/nixbuds' /etc/systemd/user/nixbuds.service"
       )
-      machine.succeed("grep -q 'Restart=on-failure' /etc/systemd/user/omarchpods.service")
+      machine.succeed("grep -q 'Restart=on-failure' /etc/systemd/user/nixbuds.service")
 
       # Core daemon starts in a real user session (as on Omarchy)
       machine.wait_for_unit("default.target", "alice")
-      machine.wait_for_unit("omarchpods.service", "alice")
+      machine.wait_for_unit("nixbuds.service", "alice")
       machine.wait_until_succeeds("${pkgs.iproute2}/bin/ss -ltn | grep -q ':2020 '")
 
       # WebSocket API answers even without a BlueZ adapter
@@ -89,11 +89,11 @@ pkgs.testers.runNixOSTest {
 
       # TUI starts (headless; we expect it to keep running until the timeout
       # kills it, which means it did not crash on startup).
-      machine.succeed("timeout 6 script -qec '${pkg}/bin/omarchpods-ui' /dev/null || test $? -eq 124")
+      machine.succeed("timeout 6 script -qec '${pkg}/bin/nixbuds-ui' /dev/null || test $? -eq 124")
 
       # Web UI: the user service serves the static page, which talks to the
       # daemon WebSocket.
-      machine.wait_for_unit("omarchpods-webui.service", "alice")
+      machine.wait_for_unit("nixbuds-webui.service", "alice")
       machine.wait_until_succeeds("curl -fsS http://127.0.0.1:2021/ | grep -q '<title>Omarchpods</title>'")
       machine.succeed("curl -fsS http://127.0.0.1:2021/app.js | grep -q 'ws://localhost:2020'")
       machine.succeed("curl -fsS http://127.0.0.1:2021/styles.css | grep -q ':root'")
