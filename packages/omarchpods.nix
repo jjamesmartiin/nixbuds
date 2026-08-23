@@ -23,6 +23,7 @@
 , xdg-terminal-exec
 , xdg-utils
 , coreutils
+, procps
 , pulseaudio
 , versions ? import ../versions.nix
   # Allow callers (e.g. the flake) to pass their own source; defaults to the
@@ -102,7 +103,7 @@ stdenv.mkDerivation {
   installPhase = ''
         runHook preInstall
 
-        install -Dm755 MagicPodsCore "$out/bin/nixbuds"
+        install -Dm755 MagicPodsCore "$out/bin/nixbuds-core"
         mkdir -p "$out/share/omarchpods"
         cp -r ../ui "$out/share/omarchpods/ui"
         cp -r ${./../webui} "$out/share/omarchpods/webui"
@@ -131,11 +132,11 @@ stdenv.mkDerivation {
     EOF
         chmod +x "$out/bin/nixbuds-webui"
 
-    # One-command launcher: starts the daemon if needed, opens the UI, and
-    # cleans up what it started on exit.
-    sed "s|@out@|$out|g; s|@coreutils@|${coreutils}|g; s|@xdg-utils@|${xdg-utils}|g" \
-      ${./../scripts/nixbuds-start.sh} > "$out/bin/nixbuds-start"
-    chmod +x "$out/bin/nixbuds-start"
+    # nixbuds command: help, start/web, tui, stop, daemon, --version. Builds
+    # from scripts/nixbuds.sh with the store paths filled in.
+    sed "s|@out@|$out|g; s|@coreutils@|${coreutils}|g; s|@procps@|${procps}|g; s|@xdg-utils@|${xdg-utils}|g" \
+      ${./../scripts/nixbuds.sh} > "$out/bin/nixbuds"
+    chmod +x "$out/bin/nixbuds"
 
         runHook postInstall
   '';
@@ -146,7 +147,7 @@ stdenv.mkDerivation {
     license = lib.licenses.gpl3Only;
     maintainers = [ ];
     platforms = lib.platforms.linux;
-    # nix run .#nixbuds / nix run .#  → the one-command launcher
-    mainProgram = "nixbuds-start";
+    # nixbuds / nix run .#  → the command (help, start/web, tui, stop, daemon)
+    mainProgram = "nixbuds";
   };
 }

@@ -23,25 +23,21 @@
       });
 
       # Standalone entry points:
-      #   nix run .#            one command: daemon (if needed) + web UI, cleanup on exit
-      #   nix run .#daemon      run the core daemon (foreground)
+      #   nix run .#            the nixbuds command (prints help)
+      #   nix run .#daemon      run the core daemon in the foreground
       #   nix run .#ui          run the Textual TUI in the current terminal
       #   nix run .#launcher    open a terminal running the TUI (xdg-terminal-exec)
       #   nix run .#webui       serve the web UI on http://127.0.0.1:2021
       apps = forAllSystems (pkgs:
         let pkg = pkgs.callPackage ./packages/omarchpods.nix { }; in {
-          # One command: daemon (if needed) + UI + cleanup.
+          # nixbuds [web|tui|start|stop|daemon|--version]
           default = {
             type = "app";
-            program = "${pkg}/bin/nixbuds-start";
-          };
-          start = {
-            type = "app";
-            program = "${pkg}/bin/nixbuds-start";
+            program = "${pkg}/bin/nixbuds";
           };
           daemon = {
             type = "app";
-            program = "${pkg}/bin/nixbuds";
+            program = "${pkg}/bin/nixbuds-core";
           };
           ui = {
             type = "app";

@@ -27,17 +27,27 @@ any configuration.
 ## Quick start — standalone, no NixOS needed
 
 The only runtime requirement is a running BlueZ daemon (standard on any desktop
-Linux). Then, from this repository:
+Linux). The easiest way to get `nixbuds` on your PATH:
 
 ```sh
-# terminal 1: run the core daemon (foreground)
-nix run .#daemon
+nix profile install .#nixbuds
+```
 
-# terminal 2: run the TUI (WebSocket connection to the daemon)
-nix run .#ui
+Then:
 
-# or: serve the web UI instead — open http://127.0.0.1:2021 in a browser
-nix run .#webui
+```sh
+nixbuds          # help: web / tui / start / stop / daemon
+nixbuds web      # start the daemon (if needed) + web UI, Ctrl+C to stop
+nixbuds tui      # start the daemon (if needed) + the TUI instead
+nixbuds stop     # stop the daemon and web UI
+```
+
+No install needed? Run the same things without touching your profile:
+
+```sh
+nix run .#daemon      # core daemon, foreground
+nix run .#ui          # TUI in the current terminal
+nix run .#webui       # serve the web UI — open http://127.0.0.1:2021
 ```
 
 That's it. The daemon registers with BlueZ over D-Bus and serves a JSON
@@ -46,32 +56,40 @@ WebSocket API on `localhost:2020`; the TUI (and the web UI) talk to it.
 Other useful one-liners:
 
 ```sh
-nix run .#daemon -- --version     # print version and exit
-nix run .#launcher                    # open a terminal running the TUI
-                                      #   (via xdg-terminal-exec, Omarchy-style)
+nixbuds --version     # print version and exit
+nix run .#launcher    # open a terminal running the TUI
+                      #   (via xdg-terminal-exec, Omarchy-style)
 
-nix build .#nixbuds                # build only
-nix shell .#                          # drop into a shell with all four
-                                      #   binaries on PATH
-nix develop                           # dev shell: binaries + cmake, gcc,
-                                      #   bluez headers, python (textual/pytest)
+nix build .#nixbuds   # build only
+nix shell .#          # drop into a shell with all binaries on PATH
+nix develop           # dev shell: binaries + cmake, gcc,
+                      #   bluez headers, python (textual/pytest)
 ```
 
 | `nix run .#…` | runs | notes |
 | --- | --- | --- |
-| *(default)* / `.#start` | `nixbuds-start` | daemon (if needed) + web UI, cleans up on exit |
-| `.#daemon` | `nixbuds` | core daemon, foreground |
+| *(default)* | `nixbuds` | the command — bare run prints help |
+| `.#daemon` | `nixbuds-core` | core daemon, foreground |
 | `.#ui` | `nixbuds-ui` | TUI in your current terminal |
 | `.#launcher` | `nixbuds-launch` | spawns a terminal running the TUI |
 | `.#webui` | `nixbuds-webui` | serves the web UI on `http://127.0.0.1:2021` |
 
-### Typical session
+### Start & stop
 
-```sh
-nix run .#daemon &      # daemon, logs to stdout
-nix run .#ui            # UI in this terminal; Ctrl+C to quit
-# or open http://127.0.0.1:2021 for the web UI (nix run .#webui)
-```
+`nixbuds` is the one command for everything:
+
+| command | what it does |
+| --- | --- |
+| `nixbuds` | prints the help menu |
+| `nixbuds start` / `nixbuds web` | start the daemon (if needed) and the web UI, then stay in the foreground; **Ctrl+C stops what it started** |
+| `nixbuds tui` | same, but runs the TUI instead of the web UI |
+| `nixbuds stop` | stops whatever is running on ports 2020/2021 — daemon and web UI — whether or not this command started it |
+| `nixbuds daemon` | run the core daemon in the foreground (what `nix run .#daemon` runs) |
+
+Instances started by `nixbuds start/web/tui` are tracked via pid files in
+`$XDG_RUNTIME_DIR` (or `/tmp`); `nixbuds stop` also finds manually-started
+instances by port/process. If the NixOS module is managing the daemon as a
+systemd user service, use `systemctl --user stop nixbuds` instead.
 
 ---
 
@@ -152,11 +170,11 @@ http://127.0.0.1:2021 in your browser.
 
 | Binary | Description |
 | --- | --- |
-| `nixbuds` | The core daemon (`MagicPodsCore` C++). Owns the Bluetooth connection state and exposes a JSON WebSocket API on `localhost:2020`. |
+| `nixbuds` | The command: `web` / `tui` / `start` / `stop` / `daemon` / `--version` (bare run prints help). |
+| `nixbuds-core` | The core daemon (`MagicPodsCore` C++). Owns the Bluetooth connection state and exposes a JSON WebSocket API on `localhost:2020`. |
 | `nixbuds-ui` | The Python [Textual](https://textual.textualize.io/) TUI. |
 | `nixbuds-launch` | Opens a terminal running the TUI via `xdg-terminal-exec` (same behaviour as Omarchy's launcher). |
 | `nixbuds-webui` | Static web UI server (`http://127.0.0.1:2021`, port overridable with `--port`). Zero dependencies beyond Python's stdlib. |
-| `nixbuds-start` | One-command launcher: starts the daemon if needed, opens the TUI/web UI, and cleans up what it started on exit. |
 
 ### Web UI
 
@@ -235,7 +253,8 @@ Upstream ships no `install` rules, so the derivation places the artifacts
 itself:
 
 ```
-$out/bin/nixbuds                   ← build/MagicPodsCore
+$out/bin/nixbuds                   ← command wrapper (web/tui/start/stop/daemon)
+$out/bin/nixbuds-core               ← build/MagicPodsCore
 $out/bin/nixbuds-ui                ← wrapper: python ui/main.py (PYTHONPATH set)
 $out/bin/nixbuds-launch            ← wrapper: xdg-terminal-exec … python ui/main.py
 $out/share/omarchpods/ui           ← the Textual TUI sources
@@ -255,7 +274,7 @@ Wants=bluetooth.target
 
 [Service]
 Type=simple
-ExecStart=/nix/store/…-omarchpods/bin/nixbuds
+ExecStart=/nix/store/…-omarchpods/bin/nixbuds-core
 Restart=on-failure
 RestartSec=5
 ```

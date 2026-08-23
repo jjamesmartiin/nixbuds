@@ -62,13 +62,18 @@ pkgs.testers.runNixOSTest {
 
       # Package installed with all the expected binaries
       machine.succeed("test -x ${pkg}/bin/nixbuds")
+      machine.succeed("test -x ${pkg}/bin/nixbuds-core")
       machine.succeed("test -x ${pkg}/bin/nixbuds-ui")
       machine.succeed("test -x ${pkg}/bin/nixbuds-launch")
       machine.succeed("${pkg}/bin/nixbuds --version")
 
+      # Bare 'nixbuds' prints the help menu (start/web/tui/stop/daemon)
+      machine.succeed("${pkg}/bin/nixbuds | grep -q 'nixbuds stop'")
+      machine.succeed("${pkg}/bin/nixbuds | grep -q 'nixbuds web'")
+
       # The module generated the user service unit
       machine.succeed(
-          "grep -q 'ExecStart=${pkg}/bin/nixbuds' /etc/systemd/user/nixbuds.service"
+          "grep -q 'ExecStart=${pkg}/bin/nixbuds-core' /etc/systemd/user/nixbuds.service"
       )
       machine.succeed("grep -q 'Restart=on-failure' /etc/systemd/user/nixbuds.service")
 
@@ -97,5 +102,11 @@ pkgs.testers.runNixOSTest {
       machine.wait_until_succeeds("curl -fsS http://127.0.0.1:2021/ | grep -q '<title>Omarchpods</title>'")
       machine.succeed("curl -fsS http://127.0.0.1:2021/app.js | grep -q 'ws://localhost:2020'")
       machine.succeed("curl -fsS http://127.0.0.1:2021/styles.css | grep -q ':root'")
+
+      # 'nixbuds stop' finds and stops whatever is running on 2020/2021 (here
+      # the systemd user services, which then restart); the API must come back.
+      machine.succeed("${pkg}/bin/nixbuds stop")
+      machine.wait_until_succeeds("${pkgs.iproute2}/bin/ss -ltn | grep -q ':2020 '")
+      machine.succeed("${wsTest}")
     '';
 }

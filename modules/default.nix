@@ -85,7 +85,7 @@ in
       wantedBy = [ "default.target" ];
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${cfg.package}/bin/nixbuds";
+        ExecStart = "${cfg.package}/bin/nixbuds-core";
         Restart = "on-failure";
         RestartSec = 5;
         StandardOutput = "journal";
