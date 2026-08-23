@@ -280,7 +280,10 @@ Three small, documented fixes are applied on top of upstream:
    `AllowOffOption = 0x01` (`04 00 04 00 09 00 34 01 00 00 00`) right after
    the init-ext sequence on connect, so ANC "Off" always works regardless of
    the iPhone-side setting. Verified against a real AirPods Pro 2: off was
-   rejected before, accepted (with a confirmation echo) after.
+   rejected before, accepted (with a confirmation echo) after. The
+   `AllowOffOption` (0x34) control command was documented by
+   [airpods-tui](https://github.com/annoyedmilk/airpods-tui); this patch
+   reimplements that packet in the upstream codebase's own style.
 3. **TUI runtime PATH** — see above (`pactl`).
 
 If upstream ever fixes these, the patch application fails loudly and you can
@@ -403,6 +406,23 @@ update.sh                # track the upstream branch
 overlay.nix              # pkgs.omarchpods overlay
 ```
 
+## Credits
+
+This project builds on the work of others and credits them where due:
+
+- **[omarchpods](https://github.com/tomycostantino/omarchpods)** — the
+  packaged software: daemon + Textual TUI, itself a fork of MagicPodsCore
+  built for Omarchy. We add Nix packaging, a web UI, and the patches above;
+  all upstream code remains theirs (GPL-3.0).
+- **[MagicPodsCore](https://github.com/steam3d/MagicPodsCore)** — the original
+  headphone daemon and the AACP/D-Bus protocol implementation we build on.
+- **[airpods-tui](https://github.com/annoyedmilk/airpods-tui)** — a Linux
+  AACP TUI (also Omarchy-flavoured) whose protocol documentation of the
+  `AllowOffOption` (0x34) control command inspired our ANC-off patch. No code
+  is shared; the packet format is reimplemented in upstream's own style.
+- The **web UI** (`webui/`) is our own work; the **TUI** ships upstream's
+  `ui/` sources unchanged.
+
 ## License
 
-GPL-3.0, matching upstream omarchpods / MagicPodsCore.
+GPL-3.0, matching upstream omarchpods / MagicPodsCore and airpods-tui.
