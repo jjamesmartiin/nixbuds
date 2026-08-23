@@ -4,7 +4,7 @@ Nix packaging for [omarchpods](https://github.com/tomycostantino/omarchpods) —
 a fork of [MagicPodsCore](https://github.com/steam3d/MagicPodsCore) that manages
 Bluetooth headphones (AirPods, Galaxy Buds, Beats, …) on Linux: battery levels,
 ANC / transparency modes, ear detection, volume swipe, press-and-hold behaviour,
-and more, with a keyboard-driven Textual TUI.
+and more — with both a keyboard-driven Textual TUI and a web UI.
 
 Upstream targets Arch/Omarchy (`install.sh` + `PKGBUILD`). This repository is
 the NixOS equivalent — but it is **not only for NixOS**: the flake exposes the
@@ -16,7 +16,10 @@ any configuration.
 │ BlueZ       │◄──────────►│ omarchpods  │◄──────────────►│ omarchpods-ui    │
 │ (bluetoothd)│            │ core daemon │   localhost:   │ (Textual TUI)    │
 └─────────────┘            │ (C++)       │   2020         └──────────────────┘
-                           └─────────────┘
+                           │             │                ┌──────────────────┐
+                           │             │◄──────────────►│ web UI           │
+                           │             │   same socket   │ (127.0.0.1:2021) │
+                           └─────────────┘                └──────────────────┘
 ```
 
 ---
@@ -32,10 +35,13 @@ nix run .#omarchpods
 
 # terminal 2: run the TUI (WebSocket connection to the daemon)
 nix run .#ui
+
+# or: serve the web UI instead — open http://127.0.0.1:2021 in a browser
+nix run .#webui
 ```
 
 That's it. The daemon registers with BlueZ over D-Bus and serves a JSON
-WebSocket API on `localhost:2020`; the TUI talks to it.
+WebSocket API on `localhost:2020`; the TUI (and the web UI) talk to it.
 
 Other useful one-liners:
 
@@ -45,7 +51,7 @@ nix run .#launcher                    # open a terminal running the TUI
                                       #   (via xdg-terminal-exec, Omarchy-style)
 
 nix build .#omarchpods                # build only
-nix shell .#                          # drop into a shell with all three
+nix shell .#                          # drop into a shell with all four
                                       #   binaries on PATH
 nix develop                           # dev shell: binaries + cmake, gcc,
                                       #   bluez headers, python (textual/pytest)
@@ -56,12 +62,14 @@ nix develop                           # dev shell: binaries + cmake, gcc,
 | *(default)* / `.#daemon` | `omarchpods` | core daemon, foreground |
 | `.#ui` | `omarchpods-ui` | TUI in your current terminal |
 | `.#launcher` | `omarchy-launch-omarchpods` | spawns a terminal running the TUI |
+| `.#webui` | `omarchpods-webui` | serves the web UI on `http://127.0.0.1:2021` |
 
 ### Typical session
 
 ```sh
 nix run .#omarchpods &      # daemon, logs to stdout
 nix run .#ui                # UI in this terminal; Ctrl+C to quit
+# or open http://127.0.0.1:2021 for the web UI (nix run .#webui)
 ```
 
 ---
@@ -121,6 +129,8 @@ in pkgs.omarchpods
 | `package` | self-contained build | The omarchpods package to use. |
 | `bluetooth.enable` | `true` | Enable BlueZ (`hardware.bluetooth`) and pull `bluetooth.target` into boot so `bluetoothd` actually starts. |
 | `ui.enable` | `true` | Add the package (daemon + TUI launchers) to `environment.systemPackages`. |
+| `webui.enable` | `false` | Serve the web UI on `http://127.0.0.1:<port>` as a systemd user service. |
+| `webui.port` | `2021` | Port for the web UI. |
 
 With the module enabled, the daemon runs as the **systemd user service**
 `omarchpods.service` (wanted by user `default.target`), matching upstream's
@@ -131,6 +141,10 @@ Omarchy packaging. Launch the TUI with `omarchpods-ui`, or bind a key:
 bind = SUPER SHIFT, H, exec, omarchy-launch-omarchpods
 ```
 
+With `webui.enable = true` an additional user service
+`omarchpods-webui.service` serves the web UI; open
+http://127.0.0.1:2021 in your browser.
+
 ---
 
 ## What you get
@@ -140,6 +154,23 @@ bind = SUPER SHIFT, H, exec, omarchy-launch-omarchpods
 | `omarchpods` | The core daemon (`MagicPodsCore` C++). Owns the Bluetooth connection state and exposes a JSON WebSocket API on `localhost:2020`. |
 | `omarchpods-ui` | The Python [Textual](https://textual.textualize.io/) TUI. |
 | `omarchy-launch-omarchpods` | Opens a terminal running the TUI via `xdg-terminal-exec` (same behaviour as Omarchy's launcher). |
+| `omarchpods-webui` | Static web UI server (`http://127.0.0.1:2021`, port overridable with `--port`). Zero dependencies beyond Python's stdlib. |
+
+### Web UI
+
+A dependency-free single-page app (`webui/`) served on `127.0.0.1:2021`. It
+connects straight to the daemon's WebSocket and lets you:
+
+- toggle the Bluetooth adapter on/off,
+- see all paired headphones and connect/disconnect them,
+- inspect the active device: battery levels (case/left/right), ear-detection
+  status, ANC/transparency mode,
+- switch ANC modes (Off / Transparency / Adaptive / Noise Cancellation,
+  filtered to what the device reports as supported).
+
+The page updates live from the daemon's broadcast topics and auto-reconnects
+if the daemon restarts. It binds to loopback only and has no authentication —
+same trust model as the TUI.
 
 ### WebSocket API (technical reference)
 
@@ -260,10 +291,11 @@ supported system (`x86_64-linux`, `aarch64-linux`):
 
 | Check | What it does |
 | --- | --- |
-| `build` | Full package build from source (C++ core + TUI wrappers). |
+| `build` | Full package build from source (C++ core + TUI + web UI wrappers). |
 | `ui-tests` | Runs upstream's 78 pytest cases against the packaged UI. |
+| `webui-check` | Static checks for our web UI: `node --check app.js`, HTML asset references, daemon WebSocket endpoint string. |
 | `dep-pins` | Fails if the FetchContent pins in `versions.nix` no longer match what the pinned upstream source declares. |
-| `nixos-test` | Boots a NixOS VM with the module enabled; asserts the unit file; starts the **user** service under a real login session (getty autologin); queries the WebSocket API with and without BlueZ; launches the TUI headless without crashing. Uses the standalone `default.nix` entry point. |
+| `nixos-test` | Boots a NixOS VM with the module enabled; asserts the unit files; starts the **user** services under a real login session (getty autologin); queries the WebSocket API with and without BlueZ; launches the TUI headless without crashing; curls the web UI pages. Uses the standalone `default.nix` entry point. |
 
 Run a single check:
 
@@ -317,6 +349,8 @@ You can also point the package at any source yourself:
 | No devices in the TUI | Check `bluetoothctl` sees paired devices and the adapter is powered. The daemon only lists paired headphones it recognises (see the supported-devices list upstream). |
 | `WRN Failed to get managed objects: Could not activate remote peer 'org.bluez'` | BlueZ isn't running. With the NixOS module this is wired up; standalone, start it (`systemctl start bluetooth` or your distro's equivalent). The daemon no longer crashes in this state (see Patches). |
 | Volume slider does nothing | The UI needs `pactl` talking to a running PulseAudio/PipeWire — our wrappers provide `pactl`, the audio server is up to you. |
+| Web UI shows “daemon offline” | The core daemon isn't running (`nix run .#omarchpods` or the user service). The page retries every 3 s. |
+| No ANC buttons in the web UI | The device must report supported ANC modes (`anc.options`); some models don't. |
 | Service keeps restarting | `journalctl --user -u omarchpods.service -f` for the core daemon log. The TUI writes its own log to `/tmp/omarchpods.log`. |
 
 ---
@@ -353,9 +387,10 @@ flake.nix                # packages, apps, module, overlay, checks, devShell, fo
 default.nix              # standalone module entry point (imports = [ <this repo> ])
 modules/default.nix      # the actual NixOS module
 packages/omarchpods.nix  # package derivation (offline FetchContent, wrappers, patch)
+webui/                   # our web UI (static page, talks to the daemon WebSocket)
 versions.nix             # pinned upstream rev + dependency pins (managed by update.sh)
 patches/                 # local patches applied to upstream
-tests/                   # ui-tests, dep-pins, nixos-test
+tests/                   # ui-tests, webui-check, dep-pins, nixos-test
 update.sh                # track the upstream branch
 overlay.nix              # pkgs.omarchpods overlay
 ```

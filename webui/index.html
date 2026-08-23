@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Omarchpods</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">🎧</span>
+      <h1>Omarchpods</h1>
+    </div>
+    <div id="daemon-status" class="status-pill status-off">connecting…</div>
+  </header>
+
+  <main>
+    <section id="adapter-card" class="card hidden">
+      <div class="card-head">
+        <h2>Bluetooth</h2>
+        <button id="adapter-toggle" class="toggle" disabled>…</button>
+      </div>
+      <p class="muted" id="adapter-note"></p>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <div class="card-head">
+          <h2>Devices</h2>
+          <span id="device-count" class="muted"></span>
+        </div>
+        <div id="device-list" class="device-list">
+          <p class="muted empty">No headphones found. Pair them with Bluetooth first.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Active device</h2>
+          <span id="active-name" class="muted"></span>
+        </div>
+        <div id="device-detail" class="device-detail">
+          <p class="muted empty">No active device.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="muted">
+    Omarchpods web UI — talks to the omarchpods core daemon on
+    <code>ws://localhost:2020</code>. Local-only, no authentication.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

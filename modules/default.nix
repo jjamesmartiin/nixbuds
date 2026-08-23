@@ -46,6 +46,20 @@ in
         description = "Add the omarchpods Textual TUI and its launchers to system packages.";
       };
     };
+
+    webui = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Serve the omarchpods web UI on http://127.0.0.1:<port> as a systemd user service.";
+      };
+
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 2021;
+        description = "Port for the web UI.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -76,6 +90,21 @@ in
         RestartSec = 5;
         StandardOutput = "journal";
         StandardError = "journal";
+      };
+    };
+
+    # Optional web UI served on 127.0.0.1 (user service).
+    systemd.user.services.omarchpods-webui = lib.mkIf cfg.webui.enable {
+      description = "Omarchpods Web UI";
+      documentation = [ "https://github.com/tomycostantino/omarchpods" ];
+      after = [ "omarchpods.service" ];
+      wants = [ "omarchpods.service" ];
+      wantedBy = [ "default.target" ];
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${cfg.package}/bin/omarchpods-webui --port ${toString cfg.webui.port}";
+        Restart = "on-failure";
+        RestartSec = 2;
       };
     };
   };

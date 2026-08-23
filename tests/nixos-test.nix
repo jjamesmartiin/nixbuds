@@ -34,14 +34,16 @@ in
 pkgs.testers.runNixOSTest {
   name = "omarchpods";
 
-  nodes.machine = { ... }: {
+  nodes.machine = { pkgs, ... }: {
     # Use the standalone module entry point (./default.nix) on purpose — this
     # is the non-flake way of importing the module.
     imports = [ ../default.nix ];
     services.omarchpods.enable = true;
+    services.omarchpods.webui.enable = true;
     users.users.alice = { isNormalUser = true; };
     # Real login session so the systemd *user* service actually starts.
     services.getty.autologinUser = "alice";
+    environment.systemPackages = [ pkgs.curl ];
   };
 
   testScript = { nodes, ... }:
@@ -88,5 +90,12 @@ pkgs.testers.runNixOSTest {
       # TUI starts (headless; we expect it to keep running until the timeout
       # kills it, which means it did not crash on startup).
       machine.succeed("timeout 6 script -qec '${pkg}/bin/omarchpods-ui' /dev/null || test $? -eq 124")
+
+      # Web UI: the user service serves the static page, which talks to the
+      # daemon WebSocket.
+      machine.wait_for_unit("omarchpods-webui.service", "alice")
+      machine.wait_until_succeeds("curl -fsS http://127.0.0.1:2021/ | grep -q '<title>Omarchpods</title>'")
+      machine.succeed("curl -fsS http://127.0.0.1:2021/app.js | grep -q 'ws://localhost:2020'")
+      machine.succeed("curl -fsS http://127.0.0.1:2021/styles.css | grep -q ':root'")
     '';
 }

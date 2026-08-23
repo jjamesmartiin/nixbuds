@@ -95,26 +95,38 @@ stdenv.mkDerivation {
   # (The cmake builder compiles out-of-source: binaries land in build/,
   # the unpacked source tree is in source/.)
   installPhase = ''
-    runHook preInstall
+        runHook preInstall
 
-    install -Dm755 MagicPodsCore "$out/bin/omarchpods"
-    mkdir -p "$out/share/omarchpods"
-    cp -r ../ui "$out/share/omarchpods/ui"
+        install -Dm755 MagicPodsCore "$out/bin/omarchpods"
+        mkdir -p "$out/share/omarchpods"
+        cp -r ../ui "$out/share/omarchpods/ui"
+        cp -r ${./../webui} "$out/share/omarchpods/webui"
 
-    # Plain launcher: run the TUI in the current terminal.
-    makeWrapper "${python}/bin/python" "$out/bin/omarchpods-ui" \
-      --set PYTHONPATH "$out/share/omarchpods/ui" \
-      --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
-      --add-flags "$out/share/omarchpods/ui/main.py"
+        # Plain launcher: run the TUI in the current terminal.
+        makeWrapper "${python}/bin/python" "$out/bin/omarchpods-ui" \
+          --set PYTHONPATH "$out/share/omarchpods/ui" \
+          --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
+          --add-flags "$out/share/omarchpods/ui/main.py"
 
-    # Omarchy-style launcher: open a terminal running the TUI.
-    makeWrapper "${xdg-terminal-exec}/bin/xdg-terminal-exec" \
-      "$out/bin/omarchy-launch-omarchpods" \
-      --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
-      --add-flags "--app-id=com.omarchy.Omarchy --title=Omarchpods" \
-      --add-flags "${python}/bin/python $out/share/omarchpods/ui/main.py"
+        # Omarchy-style launcher: open a terminal running the TUI.
+        makeWrapper "${xdg-terminal-exec}/bin/xdg-terminal-exec" \
+          "$out/bin/omarchy-launch-omarchpods" \
+          --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
+          --add-flags "--app-id=com.omarchy.Omarchy --title=Omarchpods" \
+          --add-flags "${python}/bin/python $out/share/omarchpods/ui/main.py"
 
-    runHook postInstall
+        # Web UI: serve the static page on 127.0.0.1:2021 (override with --port).
+        cat > "$out/bin/omarchpods-webui" <<EOF
+    #!/bin/sh
+    PORT=2021
+    if [ "\$1" = "--port" ]; then
+      PORT="\$2"
+    fi
+    exec "${python}/bin/python" -m http.server "\$PORT" --bind 127.0.0.1 --directory "$out/share/omarchpods/webui"
+    EOF
+        chmod +x "$out/bin/omarchpods-webui"
+
+        runHook postInstall
   '';
 
   meta = {

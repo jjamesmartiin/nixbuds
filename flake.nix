@@ -25,21 +25,27 @@
       #   nix run .#            run the core daemon (foreground)
       #   nix run .#ui          run the Textual TUI in the current terminal
       #   nix run .#launcher    open a terminal running the TUI (xdg-terminal-exec)
-      apps = forAllSystems (pkgs: let pkg = pkgs.callPackage ./packages/omarchpods.nix { }; in {
-        daemon = {
-          type = "app";
-          program = "${pkg}/bin/omarchpods";
-        };
-        ui = {
-          type = "app";
-          program = "${pkg}/bin/omarchpods-ui";
-        };
-        launcher = {
-          type = "app";
-          program = "${pkg}/bin/omarchy-launch-omarchpods";
-        };
-        default = self.apps.${pkgs.stdenv.hostPlatform.system}.daemon;
-      });
+      #   nix run .#webui       serve the web UI on http://127.0.0.1:2021
+      apps = forAllSystems (pkgs:
+        let pkg = pkgs.callPackage ./packages/omarchpods.nix { }; in {
+          daemon = {
+            type = "app";
+            program = "${pkg}/bin/omarchpods";
+          };
+          ui = {
+            type = "app";
+            program = "${pkg}/bin/omarchpods-ui";
+          };
+          launcher = {
+            type = "app";
+            program = "${pkg}/bin/omarchy-launch-omarchpods";
+          };
+          webui = {
+            type = "app";
+            program = "${pkg}/bin/omarchpods-webui";
+          };
+          default = self.apps.${pkgs.stdenv.hostPlatform.system}.daemon;
+        });
 
       # NixOS module: { imports = [ omarchpods.nixosModules.default ]; services.omarchpods.enable = true; }
       nixosModules.default = module;
@@ -55,6 +61,7 @@
           build = pkgs.callPackage ./packages/omarchpods.nix { };
           ui-tests = import ./tests/ui-tests.nix { inherit pkgs lib; };
           dep-pins = import ./tests/dep-pins.nix { inherit pkgs lib; };
+          webui-check = import ./tests/webui-check.nix { inherit pkgs lib; };
           nixos-test = import ./tests/nixos-test.nix { inherit pkgs lib; };
         });
 
