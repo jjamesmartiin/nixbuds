@@ -21,6 +21,26 @@
         default = self.packages.${pkgs.stdenv.hostPlatform.system}.omarchpods;
       });
 
+      # Standalone entry points:
+      #   nix run .#            run the core daemon (foreground)
+      #   nix run .#ui          run the Textual TUI in the current terminal
+      #   nix run .#launcher    open a terminal running the TUI (xdg-terminal-exec)
+      apps = forAllSystems (pkgs: let pkg = pkgs.callPackage ./packages/omarchpods.nix { }; in {
+        daemon = {
+          type = "app";
+          program = "${pkg}/bin/omarchpods";
+        };
+        ui = {
+          type = "app";
+          program = "${pkg}/bin/omarchpods-ui";
+        };
+        launcher = {
+          type = "app";
+          program = "${pkg}/bin/omarchy-launch-omarchpods";
+        };
+        default = self.apps.${pkgs.stdenv.hostPlatform.system}.daemon;
+      });
+
       # NixOS module: { imports = [ omarchpods.nixosModules.default ]; services.omarchpods.enable = true; }
       nixosModules.default = module;
       nixosModules.omarchpods = module;
@@ -42,6 +62,8 @@
         default = pkgs.mkShell {
           name = "omarchpods-dev";
           packages = [
+            # The built binaries are available in the dev shell too.
+            (pkgs.callPackage ./packages/omarchpods.nix { })
             pkgs.cmake
             pkgs.pkg-config
             pkgs.git
