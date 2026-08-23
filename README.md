@@ -27,27 +27,52 @@ any configuration.
 ## Quick start — standalone, no NixOS needed
 
 The only runtime requirement is a running BlueZ daemon (standard on any desktop
-Linux). The easiest way to get `nixbuds` on your PATH:
+Linux).
+
+### Running directly from a clone (no install needed)
+
+Clone or download this repository, then run commands without touching your system profile:
+
+```sh
+# Run the TUI
+nix run . -- tui
+# or using the app target:
+nix run .#ui
+
+# Run the web UI (opens http://127.0.0.1:2021)
+nix run . -- web
+# or using the app target:
+nix run .#webui
+
+# Run the core daemon in the foreground
+nix run .#daemon
+```
+
+Or drop into a shell with `nixbuds` added to your `$PATH`:
+
+```sh
+nix shell .
+nixbuds tui      # start daemon + TUI
+nixbuds web      # start daemon + web UI
+```
+
+---
+
+### Installing to your profile (optional)
+
+If you prefer to have `nixbuds` available globally on your `$PATH`:
 
 ```sh
 nix profile install .#nixbuds
 ```
 
-Then:
+Then run anywhere:
 
 ```sh
 nixbuds          # help: web / tui / start / stop / daemon
 nixbuds web      # start the daemon (if needed) + web UI, Ctrl+C to stop
 nixbuds tui      # start the daemon (if needed) + the TUI instead
 nixbuds stop     # stop the daemon and web UI
-```
-
-No install needed? Run the same things without touching your profile:
-
-```sh
-nix run .#daemon      # core daemon, foreground
-nix run .#ui          # TUI in the current terminal
-nix run .#webui       # serve the web UI — open http://127.0.0.1:2021
 ```
 
 That's it. The daemon registers with BlueZ over D-Bus and serves a JSON
@@ -61,22 +86,21 @@ nix run .#launcher    # open a terminal running the TUI
                       #   (via xdg-terminal-exec, Omarchy-style)
 
 nix build .#nixbuds   # build only
-nix shell .#          # drop into a shell with all binaries on PATH
 nix develop           # dev shell: binaries + cmake, gcc,
                       #   bluez headers, python (textual/pytest)
 ```
 
-| `nix run .#…` | runs | notes |
+| `nix run` syntax | runs | notes |
 | --- | --- | --- |
-| *(default)* | `nixbuds` | the command — bare run prints help |
-| `.#daemon` | `nixbuds-core` | core daemon, foreground |
-| `.#ui` | `nixbuds-ui` | TUI in your current terminal |
-| `.#launcher` | `nixbuds-launch` | spawns a terminal running the TUI |
-| `.#webui` | `nixbuds-webui` | serves the web UI on `http://127.0.0.1:2021` |
+| `nix run . -- tui` / `nix run .#ui` | `nixbuds-ui` | TUI in your current terminal |
+| `nix run . -- web` / `nix run .#webui` | `nixbuds-webui` | serves the web UI on `http://127.0.0.1:2021` |
+| `nix run .#daemon` | `nixbuds-core` | core daemon, foreground |
+| `nix run .#launcher` | `nixbuds-launch` | spawns a terminal running the TUI |
+| `nix run .` | `nixbuds` | default command — bare run prints help |
 
 ### Start & stop
 
-`nixbuds` is the one command for everything:
+`nixbuds` (or `nix run . -- <cmd>`) is the one command for everything:
 
 | command | what it does |
 | --- | --- |
