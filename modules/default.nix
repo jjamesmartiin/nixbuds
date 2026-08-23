@@ -49,8 +49,14 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # The core daemon needs a BlueZ daemon to talk to.
+    # The core daemon needs a BlueZ daemon to talk to. Make sure the target
+    # BlueZ is wanted by actually gets reached at boot (on desktop systems
+    # something usually pulls it in already; on minimal setups this makes it
+    # deterministic).
     hardware.bluetooth.enable = lib.mkIf cfg.bluetooth.enable (lib.mkDefault true);
+    systemd.targets.bluetooth = lib.mkIf cfg.bluetooth.enable {
+      wantedBy = [ "multi-user.target" ];
+    };
 
     environment.systemPackages = lib.mkIf cfg.ui.enable [
       cfg.package

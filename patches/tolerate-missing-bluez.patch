@@ -1,0 +1,21 @@
+diff --git a/src/dbus/DBusService.cpp b/src/dbus/DBusService.cpp
+index e178acc..8c84220 100644
+--- a/src/dbus/DBusService.cpp
++++ b/src/dbus/DBusService.cpp
+@@ -49,7 +49,15 @@ namespace MagicPodsCore {
+ 
+     std::set<std::shared_ptr<DBusDeviceInfo>> DBusService::GetBtDevices() {
+         std::map<sdbus::ObjectPath, std::map<std::string, std::map<std::string, sdbus::Variant>>> managedObjects{};
+-        _rootProxy->callMethod("GetManagedObjects").onInterface("org.freedesktop.DBus.ObjectManager").storeResultsTo<std::map<sdbus::ObjectPath, std::map<std::string, std::map<std::string, sdbus::Variant>>>>(managedObjects);
++        try {
++            _rootProxy->callMethod("GetManagedObjects").onInterface("org.freedesktop.DBus.ObjectManager").storeResultsTo<std::map<sdbus::ObjectPath, std::map<std::string, std::map<std::string, sdbus::Variant>>>>(managedObjects);
++        } catch (const sdbus::Error& e) {
++            // org.bluez may be unavailable (no adapter, bluetoothd not running,
++            // or D-Bus activation failed). Treat it as "no devices" instead of
++            // crashing; the rest of the code already handles this gracefully.
++            Logger::Warn("Failed to get managed objects: %s", e.what());
++            return {};
++        }
+ 
+         _knownDevices.clear();
+ 

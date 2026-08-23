@@ -21,14 +21,16 @@
 , systemdLibs
 , python3
 , xdg-terminal-exec
+, pulseaudio
 , versions ? import ../versions.nix
   # Allow callers (e.g. the flake) to pass their own source; defaults to the
   # pinned revision in versions.nix so the package is self-contained.
-, src ? null
+, sourceInput ? null
 }:
 
 let
-  source = if src != null then src else fetchFromGitHub {
+  source = if sourceInput != null then sourceInput else
+  fetchFromGitHub {
     owner = versions.owner;
     repo = versions.repo;
     rev = versions.rev;
@@ -71,6 +73,13 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ cmake pkg-config git makeWrapper ];
   buildInputs = [ zlib bluez systemdLibs.dev ];
 
+  # Upstream crashes (SIGABRT) at startup when org.bluez is unavailable or its
+  # D-Bus activation fails, because GetBtDevices() is not exception-safe.
+  # See patches/tolerate-missing-bluez.patch for details.
+  patches = [
+    ./../patches/tolerate-missing-bluez.patch
+  ];
+
   cmakeFlags = [
     "-DCMAKE_BUILD_TYPE=Release"
     # Do not let CMake go to the network during the build.
@@ -83,21 +92,25 @@ stdenv.mkDerivation {
   ];
 
   # Upstream ships no install rules, so we place the artifacts ourselves.
+  # (The cmake builder compiles out-of-source: binaries land in build/,
+  # the unpacked source tree is in source/.)
   installPhase = ''
     runHook preInstall
 
     install -Dm755 MagicPodsCore "$out/bin/omarchpods"
     mkdir -p "$out/share/omarchpods"
-    cp -r ui "$out/share/omarchpods/ui"
+    cp -r ../ui "$out/share/omarchpods/ui"
 
     # Plain launcher: run the TUI in the current terminal.
     makeWrapper "${python}/bin/python" "$out/bin/omarchpods-ui" \
       --set PYTHONPATH "$out/share/omarchpods/ui" \
+      --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
       --add-flags "$out/share/omarchpods/ui/main.py"
 
     # Omarchy-style launcher: open a terminal running the TUI.
     makeWrapper "${xdg-terminal-exec}/bin/xdg-terminal-exec" \
       "$out/bin/omarchy-launch-omarchpods" \
+      --prefix PATH : "${lib.makeBinPath [ pulseaudio ]}" \
       --add-flags "--app-id=com.omarchy.Omarchy --title=Omarchpods" \
       --add-flags "${python}/bin/python $out/share/omarchpods/ui/main.py"
 

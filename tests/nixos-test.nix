@@ -3,7 +3,10 @@
 # Boots a machine with the omarchpods module enabled and verifies that:
 #   - the package is installed with all expected binaries,
 #   - the systemd *user* unit is generated correctly,
-#   - the core daemon starts under a real login session,
+#   - BlueZ wiring is in place (bluetooth.target reached at boot; on a real
+#     machine bluetooth.service starts, in the VM it is skipped because there
+#     is no Bluetooth hardware),
+#   - the core daemon starts under a real login session even without BlueZ,
 #   - the WebSocket API on localhost:2020 answers requests,
 #   - the TUI launches (headless) without crashing.
 { pkgs, lib }:
@@ -15,6 +18,7 @@ let
   wsTest = pkgs.writeScript "omarchpods-ws-test" ''
     #!${python}/bin/python
     import json
+    import sys
     import websocket
 
     ws = websocket.create_connection("ws://localhost:2020", timeout=10)
@@ -31,21 +35,28 @@ pkgs.testers.runNixOSTest {
   name = "omarchpods";
 
   nodes.machine = { ... }: {
-    imports = [ ../modules/default.nix ];
+    # Use the standalone module entry point (./default.nix) on purpose — this
+    # is the non-flake way of importing the module.
+    imports = [ ../default.nix ];
     services.omarchpods.enable = true;
     users.users.alice = { isNormalUser = true; };
+    # Real login session so the systemd *user* service actually starts.
+    services.getty.autologinUser = "alice";
   };
 
   testScript = { nodes, ... }:
     let
-      pkg = nodes.machine.config.services.omarchpods.package;
+      pkg = nodes.machine.services.omarchpods.package;
     in
     ''
       start_all()
 
       machine.wait_for_unit("multi-user.target")
       machine.wait_for_unit("dbus.service")
-      machine.wait_for_unit("bluetooth.service")
+
+      # The module pulls in BlueZ support; bluetooth.service itself is skipped
+      # in this VM (no Bluetooth hardware) but the target must be reached.
+      machine.wait_for_unit("bluetooth.target")
 
       # Package installed with all the expected binaries
       machine.succeed("test -x ${pkg}/bin/omarchpods")
@@ -64,7 +75,14 @@ pkgs.testers.runNixOSTest {
       machine.wait_for_unit("omarchpods.service", "alice")
       machine.wait_until_succeeds("${pkgs.iproute2}/bin/ss -ltn | grep -q ':2020 '")
 
-      # WebSocket API answers
+      # WebSocket API answers even without a BlueZ adapter
+      machine.succeed("${wsTest}")
+
+      # If we can bring up bluetoothd manually (no adapter in the VM, but the
+      # daemon still registers on the bus), the core must keep working.
+      machine.succeed(
+          "systemd-run --unit=manual-bluetoothd ${pkgs.bluez}/libexec/bluetooth/bluetoothd -n -f /etc/bluetooth/main.conf || true"
+      )
       machine.succeed("${wsTest}")
 
       # TUI starts (headless; we expect it to keep running until the timeout

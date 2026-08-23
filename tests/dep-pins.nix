@@ -19,19 +19,21 @@ let
     { dir = "uWebSockets"; attr = "uWebSockets"; }
   ];
 
-  checkPhase = lib.concatMapStringsSep "\n" (dep:
-    let version = versions.deps.${dep.attr}.version; in
-    ''
-      if ! grep -q "${version}" "dependencies/${dep.dir}/CMakeLists.txt"; then
-        echo
-        echo "ERROR: dependencies/${dep.dir}/CMakeLists.txt no longer pins ${version}"
-        echo "       (pinned in versions.nix). Upstream changed the version -"
-        echo "       run ./update.sh or update versions.nix."
-        echo
-        exit 1
-      fi
-      echo "OK: dependencies/${dep.dir} still pins ${version}"
-    '') deps;
+  checkPhase = lib.concatMapStringsSep "\n"
+    (dep:
+      let version = versions.deps.${dep.attr}.version; in
+      ''
+        if ! grep -q "${version}" "dependencies/${dep.dir}/CMakeLists.txt"; then
+          echo
+          echo "ERROR: dependencies/${dep.dir}/CMakeLists.txt no longer pins ${version}"
+          echo "       (pinned in versions.nix). Upstream changed the version -"
+          echo "       run ./update.sh or update versions.nix."
+          echo
+          exit 1
+        fi
+        echo "OK: dependencies/${dep.dir} still pins ${version}"
+      '')
+    deps;
 in
 pkgs.stdenv.mkDerivation {
   name = "omarchpods-dep-pin-check";

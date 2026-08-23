@@ -6,10 +6,12 @@
   outputs = { self, nixpkgs }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
-      forAllSystems = f: builtins.listToAttrs (map (system: {
-        name = system;
-        value = f (import nixpkgs { inherit system; });
-      }) systems);
+      forAllSystems = f: builtins.listToAttrs (map
+        (system: {
+          name = system;
+          value = f (import nixpkgs { inherit system; });
+        })
+        systems);
 
       module = import ./modules/default.nix;
     in
@@ -28,12 +30,13 @@
         omarchpods = final.callPackage ./packages/omarchpods.nix { };
       };
 
-      checks = forAllSystems (pkgs: {
-        build = pkgs.callPackage ./packages/omarchpods.nix { };
-        ui-tests = import ./tests/ui-tests.nix { inherit pkgs; };
-        dep-pins = import ./tests/dep-pins.nix { inherit pkgs; };
-        nixos-test = import ./tests/nixos-test.nix { inherit pkgs; };
-      });
+      checks = forAllSystems (pkgs:
+        let inherit (pkgs) lib; in {
+          build = pkgs.callPackage ./packages/omarchpods.nix { };
+          ui-tests = import ./tests/ui-tests.nix { inherit pkgs lib; };
+          dep-pins = import ./tests/dep-pins.nix { inherit pkgs lib; };
+          nixos-test = import ./tests/nixos-test.nix { inherit pkgs lib; };
+        });
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
