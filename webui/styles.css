@@ -31,7 +31,7 @@ header {
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand .logo { font-size: 24px; }
+.brand .logo { font-size: 24px; display: inline-flex; align-items: center; }
 .brand h1 { font-size: 18px; margin: 0; font-weight: 650; }
 
 .status-pill {

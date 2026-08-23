@@ -219,7 +219,19 @@ function renderDetail() {
         box.appendChild(row);
         continue;
       }
-      row.append(el("span", pct + "%" + (data.charging ? " ⚡" : "")));
+      row.append(el("span", pct + "%"));
+      if (data.charging) {
+        const bolt = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        bolt.setAttribute("viewBox", "0 0 24 24");
+        bolt.setAttribute("width", "12");
+        bolt.setAttribute("height", "12");
+        bolt.setAttribute("aria-hidden", "true");
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p.setAttribute("d", "M13 2 3 14h7l-1 8 10-12h-7l1-8z");
+        p.setAttribute("fill", "currentColor");
+        bolt.appendChild(p);
+        row.append(bolt);
+      }
       box.appendChild(row);
 
       const bar = document.createElement("div");
