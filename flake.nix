@@ -1,5 +1,5 @@
 {
-  description = "Omarchpods for NixOS — AirPods / Galaxy Buds / Beats headphone daemon and TUI (fork of MagicPodsCore)";
+  description = "nixbuds — Nix packaging for omarchpods: AirPods / Galaxy Buds / Beats headphone daemon, TUI and web UI (fork of MagicPodsCore)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

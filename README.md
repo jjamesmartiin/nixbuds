@@ -1,4 +1,4 @@
-# nixos-omarchpods
+# nixbuds
 
 Nix packaging for [omarchpods](https://github.com/tomycostantino/omarchpods) —
 a fork of [MagicPodsCore](https://github.com/steam3d/MagicPodsCore) that manages
@@ -81,7 +81,7 @@ nix run .#ui                # UI in this terminal; Ctrl+C to quit
 ```nix
 # flake.nix
 {
-  inputs.omarchpods.url = "github:you/nixos-omarchpods";
+  inputs.omarchpods.url = "github:jjamesmartiin/nixbuds";
 
   outputs = { nixpkgs, omarchpods, ... }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
@@ -100,7 +100,7 @@ nix run .#ui                # UI in this terminal; Ctrl+C to quit
 # configuration.nix
 { ... }:
 {
-  imports = [ /path/to/nixos-omarchpods ];
+  imports = [ /path/to/nixbuds ];
   services.omarchpods.enable = true;
 }
 ```
@@ -114,7 +114,7 @@ exists (e.g. via the overlay) it is used instead.
 ```nix
 let
   pkgs = import <nixpkgs> {
-    overlays = [ (import /path/to/nixos-omarchpods/overlay.nix) ];
+    overlays = [ (import /path/to/nixbuds/overlay.nix) ];
   };
 in pkgs.omarchpods
 ```
@@ -263,7 +263,7 @@ reach boot, because on minimal NixOS systems nothing else pulls it in.
 
 ### Patches (local changes vs upstream)
 
-Two small, documented fixes are applied on top of upstream:
+Three small, documented fixes are applied on top of upstream:
 
 1. **`patches/tolerate-missing-bluez.patch`** — upstream's
    `DBusService::GetBtDevices()` is not exception-safe. When `org.bluez` is
@@ -273,7 +273,15 @@ Two small, documented fixes are applied on top of upstream:
    wraps the call in try/catch, matching the constructor's existing defensive
    style, and treats "no BlueZ" as "no devices". Verified: the daemon serves
    `GetAll` with an empty device list when BlueZ is down.
-2. **TUI runtime PATH** — see above (`pactl`).
+2. **`patches/allow-anc-off.patch`** — AirPods Pro 2+ (and other Adaptive
+   Audio models) refuse the AACP ANC-off command (`0x0d 0x01`) with an error
+   chime when the `AllowOffOption` flag is off — the same toggle as the iPhone
+   "Press and Hold AirPods" noise-control cycle. The patch sends
+   `AllowOffOption = 0x01` (`04 00 04 00 09 00 34 01 00 00 00`) right after
+   the init-ext sequence on connect, so ANC "Off" always works regardless of
+   the iPhone-side setting. Verified against a real AirPods Pro 2: off was
+   rejected before, accepted (with a confirmation echo) after.
+3. **TUI runtime PATH** — see above (`pactl`).
 
 If upstream ever fixes these, the patch application fails loudly and you can
 drop them from the derivation.
@@ -330,7 +338,7 @@ You can also point the package at any source yourself:
 
 ```nix
 { config, pkgs, ... }: {
-  services.omarchpods.package = pkgs.callPackage ./nixos-omarchpods/packages/omarchpods.nix {
+  services.omarchpods.package = pkgs.callPackage ./nixbuds/packages/omarchpods.nix {
     sourceInput = pkgs.fetchFromGitHub {
       owner = "tomycostantino"; repo = "omarchpods";
       rev = "…"; sha256 = "…";

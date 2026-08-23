@@ -8,7 +8,7 @@
 #     # configuration.nix
 #     { config, pkgs, lib, ... }:
 #     {
-#       imports = [ /path/to/nixos-omarchpods ];
+#       imports = [ /path/to/nixbuds ];
 #       services.omarchpods.enable = true;
 #     }
 #

@@ -3,7 +3,7 @@
 #     # configuration.nix
 #     { ... }:
 #     {
-#       imports = [ /path/to/nixos-omarchpods ];
+#       imports = [ /path/to/nixbuds ];
 #       services.omarchpods.enable = true;
 #     }
 #
