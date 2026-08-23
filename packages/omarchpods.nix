@@ -80,6 +80,9 @@ stdenv.mkDerivation {
   # See patches/tolerate-missing-bluez.patch for details.
   patches = [
     ./../patches/tolerate-missing-bluez.patch
+    # Unlock ANC "Off" on AirPods Pro 2+ (AllowOffOption=0x34 on connect);
+    # without it the device rejects the ANC-off command with an error chime.
+    ./../patches/allow-anc-off.patch
   ];
 
   cmakeFlags = [

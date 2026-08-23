@@ -1,0 +1,115 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b713072..f29862b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -31,6 +31,7 @@ add_executable(MagicPodsCore
+     src/sdk/aap/setters/AapSetToneVolume.cpp
+     src/sdk/aap/setters/AapSetMuteMicrophoneEndCall.cpp
+     src/sdk/aap/setters/AapSetAdaptiveAudioNoise.cpp
++    src/sdk/aap/setters/AapSetAllowOffOption.cpp
+ 
+     src/sdk/aap/watchers/AapAncWatcher.cpp
+     src/sdk/aap/watchers/AapBatteryWatcher.cpp
+diff --git a/src/device/AapDevice.cpp b/src/device/AapDevice.cpp
+index 5eda547..dd9373c 100644
+--- a/src/device/AapDevice.cpp
++++ b/src/device/AapDevice.cpp
+@@ -19,6 +19,7 @@
+ #include "capabilities/aap/AapBatteryCapability.h"
+ #include "sdk/aap/setters/AapInit.h"
+ #include "sdk/aap/setters/AapInitExt.h"
++#include "sdk/aap/setters/AapSetAllowOffOption.h"
+ #include "sdk/aap/setters/AapEnableNotifications.h"
+ 
+ namespace MagicPodsCore
+@@ -60,7 +61,14 @@ namespace MagicPodsCore
+         device->_clientStartData.push_back(AapEnableNotifications{AapNotificationsMode::Unknown2}.Request());
+         device->_clientStartData.push_back(AapEnableNotifications{AapNotificationsMode::Unknown1}.Request());
+         if (AapInitExt::IsSupported(deviceInfo->GetProductId()))
++        {
+             device->_clientStartData.push_back(AapInitExt{}.Request());
++            // Unlock ANC "Off": newer AirPods reject the ANC-off command
++            // (0x0d 0x01) unless AllowOffOption is enabled (the iPhone
++            // "Press and Hold" noise-control cycle setting). Force it on so
++            // ANC off always works regardless of the iPhone-side setting.
++            device->_clientStartData.push_back(AapSetAllowOffOption{true}.Request());
++        }
+ 
+         //TODO: Add initData to client
+         device->_client = Client::CreateL2CAP(deviceInfo->GetAddress(), 0x1001);
+diff --git a/src/sdk/aap/enums/AapCmdSettings.h b/src/sdk/aap/enums/AapCmdSettings.h
+index 29545d7..f38db5a 100644
+--- a/src/sdk/aap/enums/AapCmdSettings.h
++++ b/src/sdk/aap/enums/AapCmdSettings.h
+@@ -21,5 +21,6 @@ namespace MagicPodsCore
+         ToneVolume = 0x1f,
+         EndCall = 0x24,
+         AdaptiveAudioNoise = 0x2e,
++        AllowOffOption = 0x34,
+     };
+ }
+\ No newline at end of file
+diff --git a/src/sdk/aap/setters/AapSetAllowOffOption.cpp b/src/sdk/aap/setters/AapSetAllowOffOption.cpp
+new file mode 100644
+index 0000000..2b8bca6
+--- /dev/null
++++ b/src/sdk/aap/setters/AapSetAllowOffOption.cpp
+@@ -0,0 +1,21 @@
++// MagicPodsCore: https://github.com/steam3d/MagicPodsCore
++// Copyright: 2020-2025 Aleksandr Maslov <https://magicpods.app> & Andrei Litvintsev <a.a.litvintsev@gmail.com>
++// License: GPL-3.0
++
++#include "AapSetAllowOffOption.h"
++#include "sdk/aap/enums/AapCmd.h"
++#include "sdk/aap/enums/AapCmdSettings.h"
++
++namespace MagicPodsCore
++{
++    AapSetAllowOffOption::AapSetAllowOffOption(bool enabled) : AapRequest{"AapSetAllowOffOption"}
++    {
++        // Toggles use 0x01 = enabled, 0x02 = disabled on the wire.
++        _value = enabled ? 0x01 : 0x02;
++    }
++
++    std::vector<unsigned char> AapSetAllowOffOption::Request() const
++    {
++        return std::vector<unsigned char>{0x04, 0x00, 0x04, 0x00, static_cast<unsigned char>(AapCmd::Settings), 0x00, static_cast<unsigned char>(AapCmdSettings::AllowOffOption), _value, 0x00, 0x00, 0x00};
++    }
++}
+diff --git a/src/sdk/aap/setters/AapSetAllowOffOption.h b/src/sdk/aap/setters/AapSetAllowOffOption.h
+new file mode 100644
+index 0000000..6334f59
+--- /dev/null
++++ b/src/sdk/aap/setters/AapSetAllowOffOption.h
+@@ -0,0 +1,31 @@
++// MagicPodsCore: https://github.com/steam3d/MagicPodsCore
++// Copyright: 2020-2025 Aleksandr Maslov <https://magicpods.app> & Andrei Litvintsev <a.a.litvintsev@gmail.com>
++// License: GPL-3.0
++
++#pragma once
++
++#include "AapRequest.h"
++
++namespace MagicPodsCore
++{
++    // ---------------------------------------------------------------------------
++    // 0400040009003401000000  - allow ANC "Off" mode
++    // 0400040009003402000000  - disable ANC "Off" mode
++    //
++    // AirPods Pro 2 (and later models with Adaptive Audio) gate the ANC "Off"
++    // mode behind this flag. With AllowOffOption disabled (the iPhone
++    // "Press and Hold" / noise-control cycle setting), the device rejects the
++    // ANC-off command (0x0d 0x01) with an error chime and stays in its current
++    // mode. The daemon enables this flag on connect so ANC "Off" always works,
++    // even when the iPhone-side setting is off.
++    // ---------------------------------------------------------------------------
++    class AapSetAllowOffOption : public AapRequest
++    {
++    private:
++        unsigned char _value{};
++
++    public:
++        explicit AapSetAllowOffOption(bool enabled);
++        std::vector<unsigned char> Request() const override;
++    };
++}
