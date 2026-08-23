@@ -21,6 +21,8 @@
 , systemdLibs
 , python3
 , xdg-terminal-exec
+, xdg-utils
+, coreutils
 , pulseaudio
 , versions ? import ../versions.nix
   # Allow callers (e.g. the flake) to pass their own source; defaults to the
@@ -126,6 +128,12 @@ stdenv.mkDerivation {
     EOF
         chmod +x "$out/bin/omarchpods-webui"
 
+    # One-command launcher: starts the daemon if needed, opens the UI, and
+    # cleans up what it started on exit.
+    sed "s|@out@|$out|g; s|@coreutils@|${coreutils}|g; s|@xdg-utils@|${xdg-utils}|g" \
+      ${./../scripts/omarchpods-start.sh} > "$out/bin/omarchpods-start"
+    chmod +x "$out/bin/omarchpods-start"
+
         runHook postInstall
   '';
 
@@ -135,6 +143,7 @@ stdenv.mkDerivation {
     license = lib.licenses.gpl3Only;
     maintainers = [ ];
     platforms = lib.platforms.linux;
-    mainProgram = "omarchpods";
+    # nix run .#omarchpods / nix run .#  → the one-command launcher
+    mainProgram = "omarchpods-start";
   };
 }

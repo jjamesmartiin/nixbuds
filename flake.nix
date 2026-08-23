@@ -28,6 +28,11 @@
       #   nix run .#webui       serve the web UI on http://127.0.0.1:2021
       apps = forAllSystems (pkgs:
         let pkg = pkgs.callPackage ./packages/omarchpods.nix { }; in {
+          # One command: daemon (if needed) + UI + cleanup.
+          default = {
+            type = "app";
+            program = "${pkg}/bin/omarchpods-start";
+          };
           daemon = {
             type = "app";
             program = "${pkg}/bin/omarchpods";
@@ -44,7 +49,6 @@
             type = "app";
             program = "${pkg}/bin/omarchpods-webui";
           };
-          default = self.apps.${pkgs.stdenv.hostPlatform.system}.daemon;
         });
 
       # NixOS module: { imports = [ omarchpods.nixosModules.default ]; services.omarchpods.enable = true; }
